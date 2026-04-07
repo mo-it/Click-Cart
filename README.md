@@ -1,124 +1,63 @@
-# Checkout Platform — Nanoservices on K3s
+# Click Cart - Nanoservices on K3s
 
-A microservices-based checkout workflow running on Kubernetes (K3s) with KEDA autoscaling, circuit breakers, structured logging, request correlation, and PostgreSQL persistence.
+A microservices-based checkout workflow running on Kubernetes (K3s) with KEDA autoscaling, circuit breakers, structured logging, request correlation and PostgreSQL persistence.
 
 Built with Python/FastAPI. Extends the Lab 9/12 patterns (gateway → checkout → pricing + inventory) with six production-grade enhancements.
 
 ## Architecture
+Browser → Traefik Ingress → Gateway → Checkout → [Pricing, Inventory] + PostgreSQL
 
-```
-Browser/curl → Traefik Ingress → gateway-svc (port 80)
-                                       ↓
-                                  checkout-svc (port 80)
-                                  ↙    ↓    ↘
-                        pricing-svc  inventory-svc  postgres-svc
-                        (KEDA 0→5)                  (PVC + Secret)
-```
-
-## Services
-
-| Service | Container Port | Service Port | Description |
-|---------|---------------|-------------|-------------|
-| Gateway | 8000 | 80 | UI, /api/arch, /api/ping, proxies /api/checkout |
-| Checkout | 8001 | 80 | Orchestrates pricing + inventory with circuit breaker, writes audit to Postgres |
-| Pricing | 8002 | 80 | Stateless price lookup (KEDA scale-to-zero) |
-| Inventory | 8003 | 80 | Stock level lookup |
-| PostgreSQL | 5432 | 5432 | Audit log with PVC persistence |
-
-## Enhancements Beyond Lab Examples
-
-| Enhancement | What It Does | Why It Matters |
-|-------------|-------------|----------------|
-| Structured JSON logging | Every log line is `{"timestamp", "service", "request_id", ...}` | Machine-parseable, `jq`-queryable, ELK/Loki-ready |
-| Circuit breaker (`pybreaker`) | Opens after 3 failures, rejects for 30s, half-opens to test | Prevents cascading failure when dependency is down |
-| Retry with exponential backoff | 2 retries with 0.5s→1s delay | Handles KEDA cold-start race condition |
-| Graceful fallback pricing | Returns cached price when pricing-svc is down | Checkout succeeds (degraded) instead of hard-failing |
-| Startup probe (separate from readiness) | Gives pod 30s to boot before K8s checks readiness | Prevents premature restarts during cold starts |
-| `/ready` endpoint | Verifies actual Postgres connectivity | Traffic only routes when service can process requests |
-
-## Prerequisites
-
-- K3s installed (`curl -sfL https://get.k3s.io | sh -`)
-- Docker (for building images)
-- kubectl configured (`export KUBECONFIG=/etc/rancher/k3s/k3s.yaml`)
-- KEDA (installed automatically by deploy.sh via Helm)
+Four FastAPI microservices running on K3s with KEDA autoscaling, structured JSON logging, and X-Request-Id correlation.
 
 ## Quick Start
 
+### Prerequisites
+- Ubuntu 22.04 VM (VirtualBox)
+- Docker, K3s, Helm, KEDA installed
+
+### Build and Deploy
 ```bash
-# 1. Build all service images and import into K3s
 chmod +x scripts/*.sh
 ./scripts/build.sh
-
-# 2. Deploy everything
-./scripts/deploy.sh
-
-# 3. Test it
-curl http://localhost/api/ping
-curl -X POST http://localhost/api/checkout \
-  -H "Content-Type: application/json" \
-  -H "X-Request-Id: test-001" \
-  -d '{"item_id":"WIDGET-1","quantity":2}'
-
-# 4. Open the UI
-open http://localhost/
+for f in k8s/[0-9]*.yaml; do kubectl apply -f "$f"; done
 ```
 
-## Testing
+### Access
+- UI: http://localhost/ (or http://localhost:8080/ via NAT port forward)
+- Health: http://localhost/health
+- Architecture: http://localhost/api/arch
+- Ping: http://localhost/api/ping
+- Checkout: POST http://localhost/api/checkout
 
+### Run Tests
 ```bash
-# Functional tests (happy path, edge cases, X-Request-Id correlation)
 ./scripts/test-functional.sh
-
-# Reliability tests (dependency down, bad rollout, Lab 3.7 diagnosis workflow)
 ./scripts/test-reliability.sh
-
-# Scaling tests (cold vs warm latency, KEDA status, persistence proof)
 ./scripts/test-scaling.sh
 ```
 
-## Available Items
+## Products
 
-| Item ID | Price | Stock | Test Scenario |
-|---------|-------|-------|---------------|
-| WIDGET-1 | €29.99 | 42 | Happy path |
-| WIDGET-2 | €49.99 | 15 | Happy path |
-| WIDGET-3 | €9.99 | 100 | Happy path |
-| GADGET-1 | €199.99 | 3 | Low stock edge case |
-| GADGET-2 | €14.50 | 0 | Out of stock |
+| ID     | Name                  | Price    | Stock |
+|--------|-----------------------|----------|-------|
+| WM-100 | Wireless Mouse        | €29.99   | 42    |
+| BH-200 | Bluetooth Headphones  | €49.99   | 15    |
+| UC-300 | USB-C Cable           | €9.99    | 100   |
+| MK-400 | Mechanical Keyboard   | €199.99  | 3     |
+| PS-500 | Phone Stand           | €14.50   | 0     |
 
-## Teardown
+## Production Enhancements
 
-```bash
-./scripts/teardown.sh
-```
+1. **Structured JSON logging**: machine-parseable, every line has request_id
+2. **Circuit breaker** (pybreaker): opens after 3 failures, 30s recovery
+3. **Retry with backoff**: 2 retries at 0.5s, 1s intervals
+4. **Fallback pricing**: cached prices when pricing-svc is down
+5. **Startup probe**: 30s boot window before K8s considers it failed
+6. **Readiness endpoint**: /ready checks actual PostgreSQL connectivity
 
-## Project Structure
+## Security
 
-```
-checkout-platform/
-├── k8s/                          # Kubernetes manifests (numbered apply order)
-│   ├── 01-postgres-secret.yaml   # Credentials (stringData)
-│   ├── 02-postgres-pvc.yaml      # 1Gi local-path PVC
-│   ├── 03-postgres.yaml          # Deployment + Service
-│   ├── 04-pricing.yaml           # KEDA-managed (0→5 replicas)
-│   ├── 05-inventory.yaml         # Fixed 1 replica
-│   ├── 06-checkout.yaml          # Orchestrator + Postgres env
-│   ├── 07-gateway.yaml           # Edge / UI / proxy
-│   ├── 08-ingress.yaml           # Traefik (ingressClassName: traefik)
-│   ├── 09-keda-pricing.yaml      # ScaledObject for pricing
-│   └── 10-toolbox.yaml           # nicolaka/netshoot for debugging
-├── services/
-│   ├── gateway/                   # Python/FastAPI, port 8000
-│   ├── checkout/                  # Python/FastAPI, port 8001, pybreaker
-│   ├── pricing/                   # Python/FastAPI, port 8002
-│   └── inventory/                 # Python/FastAPI, port 8003
-├── scripts/
-│   ├── build.sh                   # Build + import images into K3s
-│   ├── deploy.sh                  # Install KEDA + apply all manifests
-│   ├── test-functional.sh         # Happy path, edge cases, correlation
-│   ├── test-reliability.sh        # Dependency down, bad rollout, R5 workflow
-│   ├── test-scaling.sh            # Cold/warm latency, persistence proof
-│   └── teardown.sh                # Clean removal of all resources
-└── README.md
-```
+- All FastAPI containers run as non-root (appuser, UID 1000)
+- PostgreSQL credentials managed via Kubernetes Secret (stringData)
+- PostgreSQL runs as default postgres user (documented exception)
+ENDOFREADME
