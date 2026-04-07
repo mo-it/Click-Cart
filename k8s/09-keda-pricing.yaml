@@ -1,0 +1,48 @@
+# KEDA ScaledObject — tells KEDA to manage the Pricing deployment
+#
+# How it works (café analogy):
+#   Imagine the pricing menu board has a staff member who only
+#   shows up when customers are actually ordering. If nobody orders
+#   for 5 minutes (cooldownPeriod), they go home (scale to zero).
+#   When the next order comes in, KEDA pages them back (scale from zero).
+#
+# This uses the Kubernetes workload trigger which watches the
+# deployment's metrics. For a production setup you'd use Prometheus
+# or an HTTP-based trigger, but this approach works without extra
+# infrastructure on an 8GB RAM machine.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: pricing-scaledobject
+  labels:
+    app: pricing
+spec:
+  scaleTargetRef:
+    name: pricing                  # Target the pricing Deployment
+  minReplicaCount: 0               # Scale to zero when idle
+  maxReplicaCount: 5               # Cap at 5 during traffic bursts
+  cooldownPeriod: 300              # Wait 5 min of idle before scaling down
+  pollingInterval: 15              # Check every 15 seconds
+  advanced:
+    restoreToOriginalReplicaCount: false
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 120
+          policies:
+            - type: Percent
+              value: 50
+              periodSeconds: 30
+        scaleUp:
+          stabilizationWindowSeconds: 0      # Scale up immediately
+          policies:
+            - type: Pods
+              value: 2
+              periodSeconds: 15
+  triggers:
+    # CPU-based trigger — simple and works without Prometheus
+    # Scales up when average CPU exceeds 50% of the request
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "50"

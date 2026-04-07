@@ -1,0 +1,26 @@
+# Toolbox Pod — for in-cluster troubleshooting
+# Uses nicolaka/netshoot which includes curl, nslookup, dig, nc, tcpdump
+# Usage:
+#   kubectl exec -it toolbox -- bash
+#   nslookup pricing-svc
+#   curl -i http://gateway-svc/health
+#   nc -zv postgres-svc 5432
+apiVersion: v1
+kind: Pod
+metadata:
+  name: toolbox
+  labels:
+    app: toolbox
+spec:
+  containers:
+    - name: toolbox
+      image: nicolaka/netshoot:latest
+      command: ["sleep", "36000"]
+      resources:
+        requests:
+          memory: "32Mi"
+          cpu: "10m"
+        limits:
+          memory: "64Mi"
+          cpu: "100m"
+  restartPolicy: Never

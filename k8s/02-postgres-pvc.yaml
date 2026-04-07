@@ -1,0 +1,16 @@
+# PersistentVolumeClaim for Postgres data
+# K3s ships with local-path provisioner by default
+# This ensures data survives pod restarts
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  labels:
+    app: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi

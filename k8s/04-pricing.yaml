@@ -1,0 +1,64 @@
+# Pricing Service — stateless price lookup
+# KEDA will manage the replica count (0 to 5)
+# Initial replicas set to 1 so it starts up; KEDA takes over after install
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pricing
+  labels:
+    app: pricing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pricing
+  template:
+    metadata:
+      labels:
+        app: pricing
+    spec:
+      containers:
+        - name: pricing
+          image: pricing:latest
+          imagePullPolicy: Never    # Using locally built images in K3s
+          ports:
+            - containerPort: 8002
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+      # Needed for Python to write temporary files
+      volumes: []
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pricing-svc
+  labels:
+    app: pricing
+spec:
+  selector:
+    app: pricing
+  ports:
+    - port: 80
+      targetPort: 8002
+  type: ClusterIP
