@@ -1,0 +1,220 @@
+2026-05-20T23:56:22Z	INFO	[misconfig] Misconfiguration scanning is enabled
+2026-05-20T23:56:22Z	INFO	[checks-client] Using existing checks from cache	path="/home/mohit/.cache/trivy/policy/content"
+2026-05-20T23:56:24Z	INFO	Detected config files	num=12
+
+Report Summary
+
+┌─────────────────────────────────────┬────────────┬───────────────────┐
+│               Target                │    Type    │ Misconfigurations │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 01-postgres-secret-placeholder.yaml │ kubernetes │         0         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 03-postgres.yaml                    │ kubernetes │         2         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 04-pricing.yaml                     │ kubernetes │         1         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 05-inventory.yaml                   │ kubernetes │         1         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 06-checkout.yaml                    │ kubernetes │         1         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 07-gateway.yaml                     │ kubernetes │         1         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 10-toolbox.yaml                     │ kubernetes │         1         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 11-default-deny.yaml                │ kubernetes │         0         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 12-allow-gateway.yaml               │ kubernetes │         0         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 13-allow-checkout.yaml              │ kubernetes │         0         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 14-allow-pricing-inventory.yaml     │ kubernetes │         0         │
+├─────────────────────────────────────┼────────────┼───────────────────┤
+│ 15-allow-postgres.yaml              │ kubernetes │         0         │
+└─────────────────────────────────────┴────────────┴───────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+03-postgres.yaml (kubernetes)
+=============================
+Tests: 25 (SUCCESSES: 23, FAILURES: 2)
+Failures: 2 (HIGH: 2, CRITICAL: 0)
+
+KSV-0014 (HIGH): Container 'postgres' of Deployment 'postgres' should set 'securityContext.readOnlyRootFilesystem' to true
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+An immutable root file system prevents applications from writing to their local disk. This can limit intrusions, as attackers will not be able to tamper with the file system or write foreign executables to disk.
+
+See https://avd.aquasec.com/misconfig/ksv-0014
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 03-postgres.yaml:34-67
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  34 ┌         - name: postgres
+  35 │           image: postgres:16-alpine
+  36 │           ports:
+  37 │             - containerPort: 5432
+  38 │           envFrom:
+  39 │             - secretRef:
+  40 │                 name: postgres-secret
+  41 │           volumeMounts:
+  42 └             - name: postgres-data
+  ..   
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+KSV-0118 (HIGH): deployment postgres in default namespace is using the default security context, which allows root privileges
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Security context controls the allocation of security parameters for the pod/container/volume, ensuring the appropriate level of protection. Relying on default security context may expose vulnerabilities to potential attacks that rely on privileged access.
+
+See https://avd.aquasec.com/misconfig/ksv-0118
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 03-postgres.yaml:31-71
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  31 ┌     spec:
+  32 │       automountServiceAccountToken: false
+  33 │       containers:
+  34 │         - name: postgres
+  35 │           image: postgres:16-alpine
+  36 │           ports:
+  37 │             - containerPort: 5432
+  38 │           envFrom:
+  39 └             - secretRef:
+  ..   
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+04-pricing.yaml (kubernetes)
+============================
+Tests: 24 (SUCCESSES: 23, FAILURES: 1)
+Failures: 1 (HIGH: 1, CRITICAL: 0)
+
+KSV-0118 (HIGH): deployment pricing in default namespace is using the default security context, which allows root privileges
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Security context controls the allocation of security parameters for the pod/container/volume, ensuring the appropriate level of protection. Relying on default security context may expose vulnerabilities to potential attacks that rely on privileged access.
+
+See https://avd.aquasec.com/misconfig/ksv-0118
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 04-pricing.yaml:22-62
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  22 ┌     spec:
+  23 │       automountServiceAccountToken: false    # NEW: No K8s API access
+  24 │       containers:
+  25 │         - name: pricing
+  26 │           image: pricing:latest
+  27 │           imagePullPolicy: Never
+  28 │           ports:
+  29 │             - containerPort: 8002
+  30 └           readinessProbe:
+  ..   
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+05-inventory.yaml (kubernetes)
+==============================
+Tests: 24 (SUCCESSES: 23, FAILURES: 1)
+Failures: 1 (HIGH: 1, CRITICAL: 0)
+
+KSV-0118 (HIGH): deployment inventory in default namespace is using the default security context, which allows root privileges
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Security context controls the allocation of security parameters for the pod/container/volume, ensuring the appropriate level of protection. Relying on default security context may expose vulnerabilities to potential attacks that rely on privileged access.
+
+See https://avd.aquasec.com/misconfig/ksv-0118
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 05-inventory.yaml:22-62
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  22 ┌     spec:
+  23 │       automountServiceAccountToken: false    # NEW
+  24 │       containers:
+  25 │         - name: inventory
+  26 │           image: inventory:latest
+  27 │           imagePullPolicy: Never
+  28 │           ports:
+  29 │             - containerPort: 8003
+  30 └           readinessProbe:
+  ..   
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+06-checkout.yaml (kubernetes)
+=============================
+Tests: 24 (SUCCESSES: 23, FAILURES: 1)
+Failures: 1 (HIGH: 1, CRITICAL: 0)
+
+KSV-0118 (HIGH): deployment checkout in default namespace is using the default security context, which allows root privileges
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Security context controls the allocation of security parameters for the pod/container/volume, ensuring the appropriate level of protection. Relying on default security context may expose vulnerabilities to potential attacks that rely on privileged access.
+
+See https://avd.aquasec.com/misconfig/ksv-0118
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 06-checkout.yaml:23-81
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  23 ┌     spec:
+  24 │       automountServiceAccountToken: false    # NEW: No K8s API access
+  25 │       containers:
+  26 │         - name: checkout
+  27 │           image: checkout:latest
+  28 │           imagePullPolicy: Never
+  29 │           ports:
+  30 │             - containerPort: 8001
+  31 └           envFrom:
+  ..   
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+07-gateway.yaml (kubernetes)
+============================
+Tests: 24 (SUCCESSES: 23, FAILURES: 1)
+Failures: 1 (HIGH: 1, CRITICAL: 0)
+
+KSV-0118 (HIGH): deployment gateway in default namespace is using the default security context, which allows root privileges
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Security context controls the allocation of security parameters for the pod/container/volume, ensuring the appropriate level of protection. Relying on default security context may expose vulnerabilities to potential attacks that rely on privileged access.
+
+See https://avd.aquasec.com/misconfig/ksv-0118
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 07-gateway.yaml:22-65
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  22 ┌     spec:
+  23 │       automountServiceAccountToken: false    # NEW
+  24 │       containers:
+  25 │         - name: gateway
+  26 │           image: gateway:latest
+  27 │           imagePullPolicy: Never
+  28 │           ports:
+  29 │             - containerPort: 8000
+  30 └           env:
+  ..   
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+10-toolbox.yaml (kubernetes)
+============================
+Tests: 23 (SUCCESSES: 22, FAILURES: 1)
+Failures: 1 (HIGH: 1, CRITICAL: 0)
+
+KSV-0118 (HIGH): pod toolbox in default namespace is using the default security context, which allows root privileges
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+Security context controls the allocation of security parameters for the pod/container/volume, ensuring the appropriate level of protection. Relying on default security context may expose vulnerabilities to potential attacks that rely on privileged access.
+
+See https://avd.aquasec.com/misconfig/ksv-0118
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ 10-toolbox.yaml:17-38
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  17 ┌ spec:
+  18 │   automountServiceAccountToken: false        # NEW: No K8s API access
+  19 │   containers:
+  20 │     - name: toolbox
+  21 │       image: nicolaka/netshoot:latest
+  22 │       command: ["sleep", "3600"]             # CHANGED: 1hr instead of 10hrs
+  23 │       resources:
+  24 │         requests:
+  25 └           memory: "32Mi"
+  ..   
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+

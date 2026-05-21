@@ -1,0 +1,35 @@
+# Gateway NetworkPolicy
+# The front door of the café — customers can enter, waiter can go to kitchen
+#
+# ALLOWS:
+#   IN:  Traffic from anywhere (Traefik Ingress sends customer requests here)
+#   OUT: Only to checkout-svc (the kitchen) + DNS (so it can resolve service names)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app: gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from: []                            # Allow from anywhere (Traefik)
+      ports:
+        - port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: checkout               # Can ONLY reach checkout
+      ports:
+        - port: 8001
+    - to:                                 # DNS resolution (required!)
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

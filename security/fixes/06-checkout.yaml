@@ -1,0 +1,95 @@
+# Checkout Service — HARDENED for Assignment 2
+# Changes from original:
+#   + automountServiceAccountToken: false
+#   + readOnlyRootFilesystem: true (was missing!)
+#   + allowPrivilegeEscalation: false
+#   + capabilities.drop: [ALL]
+#   + /tmp emptyDir volume (Python needs writable temp dir)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout
+  labels:
+    app: checkout
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: checkout
+  template:
+    metadata:
+      labels:
+        app: checkout
+    spec:
+      automountServiceAccountToken: false    # NEW: No K8s API access
+      containers:
+        - name: checkout
+          image: checkout:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          env:
+            - name: PRICING_URL
+              value: "http://pricing-svc"
+            - name: INVENTORY_URL
+              value: "http://inventory-svc"
+            - name: DB_HOST
+              value: "postgres-svc"
+            - name: DB_PORT
+              value: "5432"
+            - name: DEPENDENCY_TIMEOUT
+              value: "3.0"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            failureThreshold: 10
+            periodSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8001
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          securityContext:
+            runAsNonRoot: true               # KEPT from original
+            runAsUser: 1000                  # KEPT from original
+            readOnlyRootFilesystem: true      # NEW: Can't write to container
+            allowPrivilegeEscalation: false   # NEW: Can't gain privileges
+            capabilities:
+              drop:
+                - ALL                         # NEW: Drop all capabilities
+          volumeMounts:                       # NEW: Python needs writable /tmp
+            - name: tmp-volume
+              mountPath: /tmp
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}                       # Writable temp dir backed by RAM
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout-svc
+  labels:
+    app: checkout
+spec:
+  selector:
+    app: checkout
+  ports:
+    - port: 80
+      targetPort: 8001
+  type: ClusterIP

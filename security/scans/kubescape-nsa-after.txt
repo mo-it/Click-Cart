@@ -1,0 +1,47 @@
+{"level":"info","ts":"2026-05-20T23:56:17Z","msg":"Kubescape scanner initializing..."}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Initialized scanner"}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Loading policies..."}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Loaded policies"}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Loading exceptions..."}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Loaded exceptions"}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Loading account configurations..."}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Loaded account configurations"}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Accessing local objects..."}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Done accessing local objects"}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Scanning GitLocal"}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Done scanning GitLocal"}
+{"level":"info","ts":"2026-05-20T23:56:21Z","msg":"Done aggregating results"}
+
+
+──────────────────────────────────────────────────
+
+Framework scanned: NSA
+
+╭─────────────────┬────╮
+│        Controls │ 20 │
+│          Passed │ 17 │
+│          Failed │ 3  │
+│ Action Required │ 0  │
+╰─────────────────┴────╯
+
+Failed resources by severity:
+
+╭──────────┬───╮
+│ Critical │ 0 │
+│     High │ 0 │
+│   Medium │ 7 │
+│      Low │ 1 │
+╰──────────┴───╯
+
+Run with '--verbose'/'-v' to see control failures for each resource.
+
+╭──────────┬────────────────────────────────┬──────────────────┬───────────────┬──────────────────╮
+│ Severity │ Control name                   │ Failed resources │ All Resources │ Compliance score │
+├──────────┼────────────────────────────────┼──────────────────┼───────────────┼──────────────────┤
+│  Medium  │ Non-root containers            │         6        │       6       │        0%        │
+│  Medium  │ Allow privilege escalation     │         1        │       6       │        83%       │
+│    Low   │ Immutable container filesystem │         1        │       6       │        83%       │
+├──────────┼────────────────────────────────┼──────────────────┼───────────────┼──────────────────┤
+│          │        Resource Summary        │         6        │       12      │      93.33%      │
+╰──────────┴────────────────────────────────┴──────────────────┴───────────────┴──────────────────╯
+

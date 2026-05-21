@@ -1,0 +1,59 @@
+# Pricing & Inventory NetworkPolicies
+# The menu board and stockroom — only the kitchen staff (checkout) can enter
+#
+# ALLOWS:
+#   IN:  Only from checkout
+#   OUT: DNS only (these services don't call anything else)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-pricing
+spec:
+  podSelector:
+    matchLabels:
+      app: pricing
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: checkout
+      ports:
+        - port: 8002
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-inventory
+spec:
+  podSelector:
+    matchLabels:
+      app: inventory
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: checkout
+      ports:
+        - port: 8003
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

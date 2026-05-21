@@ -1,0 +1,51 @@
+# Checkout NetworkPolicy
+# The kitchen — receives orders from waiter, talks to menu board,
+# stockroom, and record book
+#
+# ALLOWS:
+#   IN:  Only from gateway (the waiter brings orders)
+#   OUT: To pricing, inventory, postgres, and DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-checkout
+spec:
+  podSelector:
+    matchLabels:
+      app: checkout
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: gateway
+      ports:
+        - port: 8001
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: pricing
+      ports:
+        - port: 8002
+    - to:
+        - podSelector:
+            matchLabels:
+              app: inventory
+      ports:
+        - port: 8003
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - port: 5432
+    - to:                                 # DNS
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

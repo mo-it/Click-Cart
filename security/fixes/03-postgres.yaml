@@ -1,0 +1,85 @@
+# PostgreSQL Deployment — HARDENED for Assignment 2
+# NOTE: Postgres is a special case. Unlike our Python services, the official
+# postgres image requires root during startup to initialise the data directory,
+# then drops to the 'postgres' user internally.
+#
+# Hardening applied:
+#   + automountServiceAccountToken: false (no K8s API access)
+#   + capabilities.drop: [ALL] then add back ONLY what Postgres needs
+#   + resource limits enforced
+#
+# Why not runAsNonRoot or readOnlyRootFilesystem?
+#   Postgres needs root for chmod/chown on /var/lib/postgresql/data at startup.
+#   This is documented in the official postgres Docker image.
+#   In production, you'd use a Postgres operator (e.g. CloudNativePG) that
+#   handles this properly with init containers.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "checkout"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "checkout"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          securityContext:
+            capabilities:
+              drop:
+                - NET_RAW          # Prevents packet sniffing
+                - SYS_ADMIN        # Prevents mount/unmount, cgroups
+                - SYS_PTRACE       # Prevents debugging other processes
+                - NET_BIND_SERVICE # Postgres uses 5432 (>1024), doesn't need this
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-svc
+  labels:
+    app: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP

@@ -1,0 +1,14 @@
+# Default Deny — Block ALL traffic first, then allow specific paths
+# Think of it like: "The café is closed. Now let's decide who gets keys."
+#
+# Without this policy, Kubernetes allows ALL pod-to-pod communication.
+# This is the #1 recommendation in the NSA/CISA Kubernetes Hardening Guide.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+spec:
+  podSelector: {}           # Applies to ALL pods in the namespace
+  policyTypes:
+    - Ingress               # Block all incoming traffic
+    - Egress                # Block all outgoing traffic

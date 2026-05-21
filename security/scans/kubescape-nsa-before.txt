@@ -1,0 +1,50 @@
+{"level":"info","ts":"2026-05-20T22:58:12Z","msg":"Kubescape scanner initializing..."}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Initialized scanner"}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Loading policies..."}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Loaded policies"}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Loading exceptions..."}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Loaded exceptions"}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Loading account configurations..."}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Loaded account configurations"}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Accessing local objects..."}
+{"level":"warn","ts":"2026-05-20T22:58:15Z","msg":"unsupported/unmapped object kind","kind":"ScaledObject","id":"path=926258897/api=keda.sh/v1alpha1//ScaledObject/pricing-scaledobject","error":"resource not found. resource 'scaledobjects' unknown. Make sure the resource is found at `kubectl api-resources`"}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Done accessing local objects"}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Scanning GitLocal"}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Done scanning GitLocal"}
+{"level":"info","ts":"2026-05-20T22:58:15Z","msg":"Done aggregating results"}
+
+
+──────────────────────────────────────────────────
+
+Framework scanned: NSA
+
+╭─────────────────┬────╮
+│        Controls │ 20 │
+│          Passed │ 15 │
+│          Failed │ 5  │
+│ Action Required │ 0  │
+╰─────────────────┴────╯
+
+Failed resources by severity:
+
+╭──────────┬────╮
+│ Critical │ 0  │
+│     High │ 0  │
+│   Medium │ 24 │
+│      Low │ 3  │
+╰──────────┴────╯
+
+Run with '--verbose'/'-v' to see control failures for each resource.
+
+╭──────────┬────────────────────────────────┬──────────────────┬───────────────┬──────────────────╮
+│ Severity │ Control name                   │ Failed resources │ All Resources │ Compliance score │
+├──────────┼────────────────────────────────┼──────────────────┼───────────────┼──────────────────┤
+│  Medium  │ Non-root containers            │         6        │       6       │        0%        │
+│  Medium  │ Allow privilege escalation     │         6        │       6       │        0%        │
+│  Medium  │ Ingress and Egress blocked     │         6        │       6       │        0%        │
+│  Medium  │ Linux hardening                │         6        │       6       │        0%        │
+│    Low   │ Immutable container filesystem │         3        │       6       │        50%       │
+├──────────┼────────────────────────────────┼──────────────────┼───────────────┼──────────────────┤
+│          │        Resource Summary        │         6        │       6       │      77.50%      │
+╰──────────┴────────────────────────────────┴──────────────────┴───────────────┴──────────────────╯
+

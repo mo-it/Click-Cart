@@ -1,0 +1,38 @@
+# Toolbox Pod — HARDENED for Assignment 2
+# ⚠️  In PRODUCTION: DELETE this pod entirely. It exists only for dev debugging.
+#
+# Changes from original:
+#   + automountServiceAccountToken: false (no K8s API access)
+#   + runAsNonRoot: true + runAsUser: 1000
+#   + readOnlyRootFilesystem: true
+#   + allowPrivilegeEscalation: false
+#   + capabilities.drop: [ALL]
+#   + Sleep reduced from 36000s (10hrs) to 3600s (1hr)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: toolbox
+  labels:
+    app: toolbox
+spec:
+  automountServiceAccountToken: false        # NEW: No K8s API access
+  containers:
+    - name: toolbox
+      image: nicolaka/netshoot:latest
+      command: ["sleep", "3600"]             # CHANGED: 1hr instead of 10hrs
+      resources:
+        requests:
+          memory: "32Mi"
+          cpu: "10m"
+        limits:
+          memory: "64Mi"
+          cpu: "100m"
+      securityContext:                        # NEW: Full hardening
+        runAsNonRoot: true
+        runAsUser: 1000
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+  restartPolicy: Never
