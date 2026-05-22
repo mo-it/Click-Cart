@@ -1,0 +1,16 @@
+=== CONTAINER SECURITY TESTS ===
+
+Test 1: Can container write to filesystem?
+touch: cannot touch '/app/hack': Read-only file system
+command terminated with exit code 1
+
+Test 2: Is K8s API token mounted?
+ls: cannot access '/var/run/secrets/kubernetes.io/serviceaccount/': No such file or directory
+command terminated with exit code 2
+
+Test 3: Can container install packages?
+Reading package lists...
+E: Could not open lock file /var/lib/apt/lists/lock - open (13: Permission denied)
+E: Unable to lock directory /var/lib/apt/lists/
+command terminated with exit code 100
+
