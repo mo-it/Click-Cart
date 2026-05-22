@@ -1,7 +1,8 @@
-"""Pricing Service — product price lookup."""
+"""Pricing Service — product price lookup (+ Prometheus metrics)."""
 
 import json, logging
 from fastapi import FastAPI, Request, Query
+from prometheus_fastapi_instrumentator import Instrumentator
 
 SERVICE_NAME = "pricing"
 
@@ -20,6 +21,9 @@ logger.handlers = [h]
 logger.setLevel(logging.INFO)
 
 app = FastAPI(title="Pricing Service")
+
+# Prometheus auto-instrumentation — creates /metrics endpoint
+Instrumentator().instrument(app).expose(app)
 
 PRICES = {
     "WM-100": 29.99,

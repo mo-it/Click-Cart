@@ -1,7 +1,8 @@
-"""Inventory Service — product stock lookup."""
+"""Inventory Service — product stock lookup (+ Prometheus metrics)."""
 
 import json, logging
 from fastapi import FastAPI, Request, Query
+from prometheus_fastapi_instrumentator import Instrumentator
 
 SERVICE_NAME = "inventory"
 
@@ -20,6 +21,9 @@ logger.handlers = [h]
 logger.setLevel(logging.INFO)
 
 app = FastAPI(title="Inventory Service")
+
+# Prometheus auto-instrumentation — creates /metrics endpoint
+Instrumentator().instrument(app).expose(app)
 
 STOCK = {
     "WM-100": 42,

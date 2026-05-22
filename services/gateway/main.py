@@ -1,9 +1,12 @@
-"""Gateway Service — routes requests and serves the UI."""
+"""Gateway Service — routes requests and serves the UI (+ Prometheus metrics)."""
 
 import os, uuid, time, json, logging
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+
+# ── Prometheus ──────────────────────────────────────────────────
+from prometheus_fastapi_instrumentator import Instrumentator
 
 CHECKOUT_URL = os.getenv("CHECKOUT_URL", "http://checkout-svc")
 SERVICE_NAME = "gateway"
@@ -24,6 +27,9 @@ log.setLevel(logging.INFO)
 
 app = FastAPI()
 client = httpx.AsyncClient(timeout=5.0)
+
+# Wire up Prometheus — creates /metrics endpoint automatically
+Instrumentator().instrument(app).expose(app)
 
 @app.middleware("http")
 async def mid(req: Request, call_next):
@@ -123,57 +129,47 @@ async def ui():
   <nav><span>CLICK CART</span></nav>
   <div class="page">
     <h2>Choose a product</h2>
-
     <div class="item sel" data-id="WM-100" onclick="pick(this)">
       <input type="radio" name="i" checked>
       <div class="info"><div class="name">Wireless Mouse</div></div>
       <div class="right"><div class="price">&euro;29.99</div><div class="stock">42 in stock</div></div>
     </div>
-
     <div class="item" data-id="BH-200" onclick="pick(this)">
       <input type="radio" name="i">
       <div class="info"><div class="name">Bluetooth Headphones</div></div>
       <div class="right"><div class="price">&euro;49.99</div><div class="stock">15 in stock</div></div>
     </div>
-
     <div class="item" data-id="UC-300" onclick="pick(this)">
       <input type="radio" name="i">
       <div class="info"><div class="name">USB-C Cable</div></div>
       <div class="right"><div class="price">&euro;9.99</div><div class="stock">100 in stock</div></div>
     </div>
-
     <div class="item" data-id="MK-400" onclick="pick(this)">
       <input type="radio" name="i">
       <div class="info"><div class="name">Mechanical Keyboard</div></div>
       <div class="right"><div class="price">&euro;199.99</div><div class="stock low">Only 3 left</div></div>
     </div>
-
     <div class="item" data-id="PS-500" onclick="pick(this)">
       <input type="radio" name="i">
       <div class="info"><div class="name">Phone Stand</div></div>
       <div class="right"><div class="price">&euro;14.50</div><div class="stock out">Out of stock</div></div>
     </div>
-
     <div class="bar">
       <label>Qty</label>
       <input type="number" id="qty" value="1" min="1">
       <button class="btn" id="btn" onclick="order()">Place order</button>
     </div>
-
     <div class="msg" id="msg"></div>
     <div class="foot">&copy; 2026 Click Cart</div>
   </div>
-
 <script>
 var sel={id:'WM-100'};
-
 function pick(el){
   document.querySelectorAll('.item').forEach(function(i){i.classList.remove('sel')});
   el.classList.add('sel');
   el.querySelector('input').checked=true;
   sel={id:el.dataset.id};
 }
-
 async function order(){
   var qty=parseInt(document.getElementById('qty').value)||1;
   var b=document.getElementById('btn');
@@ -188,21 +184,14 @@ async function order(){
     if(r.ok&&d.status==='success'){
       if(d.fallback_price_used){
         m.className='msg warn';
-        m.innerHTML='<b>Order placed</b> (estimated price)<br>'+
-          'Total: &euro;'+d.total.toFixed(2)+
-          '<br><code>Order ref: '+d.request_id+'</code>';
+        m.innerHTML='<b>Order placed</b> (estimated price)<br>Total: &euro;'+d.total.toFixed(2)+'<br><code>Order ref: '+d.request_id+'</code>';
       }else{
         m.className='msg ok';
-        m.innerHTML='<b>Order confirmed</b><br>'+
-          'Total: &euro;'+d.total.toFixed(2)+' &middot; '+
-          d.stock_remaining+' remaining in stock'+
-          '<br><code>Order ref: '+d.request_id+'</code>';
+        m.innerHTML='<b>Order confirmed</b><br>Total: &euro;'+d.total.toFixed(2)+' &middot; '+d.stock_remaining+' remaining in stock<br><code>Order ref: '+d.request_id+'</code>';
       }
     }else{
       m.className='msg err';
-      m.innerHTML='<b>Order could not be placed</b><br>'+(d.error||'Something went wrong')+
-        (d.available!==undefined?'<br>Available stock: '+d.available:'')+
-        '<br><code>Ref: '+(d.request_id||'')+'</code>';
+      m.innerHTML='<b>Order could not be placed</b><br>'+(d.error||'Something went wrong')+(d.available!==undefined?'<br>Available stock: '+d.available:'')+'<br><code>Ref: '+(d.request_id||'')+'</code>';
     }
   }catch(e){
     m.style.display='block'; m.className='msg err';

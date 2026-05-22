@@ -1,10 +1,3 @@
-# Checkout NetworkPolicy
-# The kitchen — receives orders from waiter, talks to menu board,
-# stockroom, and record book
-#
-# ALLOWS:
-#   IN:  Only from gateway (the waiter brings orders)
-#   OUT: To pricing, inventory, postgres, and DNS
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -42,7 +35,7 @@ spec:
               app: postgres
       ports:
         - port: 5432
-    - to:                                 # DNS
+    - to:
         - namespaceSelector: {}
       ports:
         - port: 53

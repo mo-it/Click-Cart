@@ -1,0 +1,19 @@
+# ServiceMonitor tells Prometheus to scrape our Click-Cart services
+# Think of it as: telling the security camera system where to point
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: click-cart-services
+  namespace: monitoring
+  labels:
+    release: prometheus    # Must match the Helm release name
+spec:
+  namespaceSelector:
+    matchNames:
+      - default            # Our services run in the default namespace
+  selector:
+    matchLabels: {}        # Match all services in default namespace
+  endpoints:
+    - port: ""             # Will be overridden per service
+      interval: 30s
+      path: /metrics

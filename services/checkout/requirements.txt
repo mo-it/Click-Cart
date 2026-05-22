@@ -3,3 +3,5 @@ uvicorn==0.34.0
 httpx==0.28.1
 psycopg2-binary==2.9.10
 pybreaker==1.2.0
+prometheus-fastapi-instrumentator==7.0.2
+prometheus-client==0.21.1

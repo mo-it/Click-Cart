@@ -1,12 +1,10 @@
 """
-Checkout Service — the kitchen orchestrator (UPGRADED).
+Checkout Service — the kitchen orchestrator (UPGRADED + OBSERVABILITY).
 
-Production-grade enhancements:
-  - Structured JSON logging (machine-readable, grep-friendly)
-  - Circuit breaker pattern (pybreaker) on dependency calls
-  - Retry with exponential backoff for transient failures
-  - Graceful fallback when pricing is unavailable (cached/default prices)
-  - Startup probe compatibility (separate from readiness)
+Assignment 2 additions:
+  - Prometheus metrics via prometheus-fastapi-instrumentator
+  - Custom circuit breaker state gauge (for Grafana dashboard)
+  - Custom checkout outcome counter (success/error/fallback tracking)
 """
 
 import os
@@ -22,6 +20,27 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+# ── Prometheus Metrics ──────────────────────────────────────────
+# Think of this like installing automatic counters at every door in the café:
+# - How many customers entered? (request count)
+# - How long did they wait? (request duration)
+# - How big was their order? (response size)
+from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import Counter, Gauge
+
+# Custom metrics that tell the STORY of our system
+# These are what make the Grafana dashboard interesting
+circuit_breaker_state = Gauge(
+    "circuit_breaker_state",
+    "Circuit breaker: 0=closed(healthy), 1=open(failing), 2=half-open(testing)",
+    ["dependency"]
+)
+checkout_outcomes = Counter(
+    "checkout_outcomes_total",
+    "How each checkout request ended",
+    ["result"]  # success, out_of_stock, error, fallback
+)
+
 # ── Config ──────────────────────────────────────────────────────
 PRICING_URL = os.getenv("PRICING_URL", "http://pricing-svc")
 INVENTORY_URL = os.getenv("INVENTORY_URL", "http://inventory-svc")
@@ -36,10 +55,6 @@ RETRY_BACKOFF = float(os.getenv("RETRY_BACKOFF", "0.5"))
 SERVICE_NAME = "checkout"
 
 # ── Structured JSON Logging ─────────────────────────────────────
-# Every log line is a JSON object with consistent fields.
-# This makes logs parseable by Loki, ELK, CloudWatch, etc.
-# Think of it like every receipt in the café having the same format:
-# date, counter, staff member, action, details.
 class JSONFormatter(logging.Formatter):
     def format(self, record):
         log_entry = {
@@ -61,10 +76,13 @@ logger.handlers = [handler]
 logger.setLevel(logging.INFO)
 
 # ── Circuit Breaker ─────────────────────────────────────────────
-# Tracks recent failures per dependency. Opens after 3 consecutive
-# failures, rejects calls for 30s, then half-opens to test recovery.
 class CircuitBreakerLogger(pybreaker.CircuitBreakerListener):
     def state_change(self, cb, old_state, new_state):
+        # Push state to Prometheus so Grafana can visualise it
+        state_map = {"closed": 0, "open": 1, "half-open": 2}
+        circuit_breaker_state.labels(dependency=cb.name).set(
+            state_map.get(new_state.name, -1)
+        )
         logger.warning(
             "Circuit breaker '%s' state: %s -> %s",
             cb.name, old_state.name, new_state.name,
@@ -87,8 +105,6 @@ inventory_breaker = pybreaker.CircuitBreaker(
 )
 
 # ── Fallback Prices ─────────────────────────────────────────────
-# When pricing is unavailable (cold start, circuit open), return
-# cached defaults instead of a hard failure. Graceful degradation.
 FALLBACK_PRICES = {
     "WM-100": 29.99, "BH-200": 49.99, "UC-300": 9.99,
     "MK-400": 199.99, "PS-500": 14.50,
@@ -97,6 +113,14 @@ FALLBACK_PRICES = {
 # ── App ─────────────────────────────────────────────────────────
 app = FastAPI(title="Checkout Service")
 http_client = httpx.AsyncClient(timeout=TIMEOUT_SECONDS)
+
+# Wire up Prometheus automatic instrumentation
+# This creates /metrics endpoint and tracks all HTTP requests automatically
+Instrumentator().instrument(app).expose(app)
+
+# Initialise circuit breaker gauges to 0 (closed = healthy)
+circuit_breaker_state.labels(dependency="pricing").set(0)
+circuit_breaker_state.labels(dependency="inventory").set(0)
 
 
 class CheckoutRequest(BaseModel):
@@ -159,7 +183,6 @@ def write_audit(request_id, item_id, quantity, price, stock, result, fallback_us
 
 
 async def call_with_retry(func, retries=RETRY_MAX, backoff=RETRY_BACKOFF):
-    """Retry with exponential backoff. Handles KEDA cold-start race."""
     last_exc = None
     for attempt in range(retries + 1):
         try:
@@ -180,7 +203,6 @@ async def health():
 
 @app.get("/ready")
 async def readiness():
-    """Readiness probe — verifies Postgres connectivity."""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -217,7 +239,6 @@ async def checkout(payload: CheckoutRequest, request: Request):
     start_time = time.time()
     fallback_used = False
 
-    # ── Dependency calls with circuit breaker ────────────────
     async def call_pricing():
         @pricing_breaker
         async def _call():
@@ -246,12 +267,12 @@ async def checkout(payload: CheckoutRequest, request: Request):
         return_exceptions=True,
     )
 
-    # ── Pricing: fallback if unavailable ─────────────────────
     if isinstance(results[0], Exception):
         err_type = type(results[0]).__name__
         if item_id in FALLBACK_PRICES:
             pricing_result = {"item_id": item_id, "price": FALLBACK_PRICES[item_id]}
             fallback_used = True
+            checkout_outcomes.labels(result="fallback").inc()  # METRIC
             logger.info(
                 "Fallback price: %.2f for %s", FALLBACK_PRICES[item_id], item_id,
                 extra={"request_id": request_id, "extra_data": {
@@ -263,7 +284,6 @@ async def checkout(payload: CheckoutRequest, request: Request):
     else:
         pricing_result = results[0]
 
-    # ── Inventory: no fallback (stock must be live) ──────────
     if isinstance(results[1], Exception):
         errors.append(f"inventory: {type(results[1]).__name__}")
     else:
@@ -272,6 +292,7 @@ async def checkout(payload: CheckoutRequest, request: Request):
     elapsed = time.time() - start_time
 
     if errors:
+        checkout_outcomes.labels(result="error").inc()  # METRIC
         write_audit(request_id, item_id, quantity, None, None,
                      f"error: {', '.join(errors)}", fallback_used)
         status = 504 if "Timeout" in str(errors) else 503
@@ -285,6 +306,7 @@ async def checkout(payload: CheckoutRequest, request: Request):
     stock = inventory_result.get("stock", 0)
 
     if stock < quantity:
+        checkout_outcomes.labels(result="out_of_stock").inc()  # METRIC
         write_audit(request_id, item_id, quantity, price, stock, "out_of_stock", fallback_used)
         return JSONResponse(
             content={"error": "insufficient stock", "item_id": item_id,
@@ -293,6 +315,7 @@ async def checkout(payload: CheckoutRequest, request: Request):
         )
 
     total = round(price * quantity, 2)
+    checkout_outcomes.labels(result="success").inc()  # METRIC
     logger.info(
         "Checkout success: total=%.2f", total,
         extra={"request_id": request_id, "extra_data": {

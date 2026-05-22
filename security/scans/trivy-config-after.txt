@@ -1,6 +1,6 @@
-2026-05-20T23:56:22Z	INFO	[misconfig] Misconfiguration scanning is enabled
-2026-05-20T23:56:22Z	INFO	[checks-client] Using existing checks from cache	path="/home/mohit/.cache/trivy/policy/content"
-2026-05-20T23:56:24Z	INFO	Detected config files	num=12
+2026-05-21T00:17:36Z	INFO	[misconfig] Misconfiguration scanning is enabled
+2026-05-21T00:17:36Z	INFO	[checks-client] Using existing checks from cache	path="/home/mohit/.cache/trivy/policy/content"
+2026-05-21T00:17:40Z	INFO	Detected config files	num=12
 
 Report Summary
 
