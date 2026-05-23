@@ -1,0 +1,24 @@
+=== BAD POD CONTAINER ESCAPE TEST ===
+Date: $(date)
+
+PURPOSE: Demonstrate that a privileged pod with hostPID can escape
+the container and access the host filesystem and processes.
+
+BEFORE FIX:
+- Deployed pod with hostPID: true, privileged: true
+- Used nsenter to escape to host namespace
+- Confirmed root access on checkout-lab VM
+- Could read K3s server tokens and all host processes
+
+AFTER FIX:
+- Applied Pod Security Standards (baseline) to default namespace
+- Re-deployed same pod — PSS warns about violations:
+  - hostPID is not allowed
+  - privileged containers are not allowed
+- In enforce mode, the pod would be rejected entirely
+
+CONCLUSION:
+- Container escape is trivial without admission controls
+- Pod Security Standards (baseline profile) prevents this attack class
+- Recommendation: enforce=baseline on all namespaces, with restricted
+  for application workloads
